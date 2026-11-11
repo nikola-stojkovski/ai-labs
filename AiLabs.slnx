@@ -4,6 +4,7 @@
   </Folder>
   <Folder Name="/phase-01/">
     <Project Path="phase-01/cost-calculator/Phase01.CostCalculator.csproj" />
+    <Project Path="phase-01/prompt-kata/Phase01.PromptKata.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Labs.Common/Labs.Common.csproj" />
