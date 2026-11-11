@@ -5,10 +5,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <Compile Include="FINDINGS.md" />
-	</ItemGroup>
-
-	<ItemGroup>
 		<ProjectReference Include="..\..\src\Labs.Common\Labs.Common.csproj" />
 	</ItemGroup>
 
