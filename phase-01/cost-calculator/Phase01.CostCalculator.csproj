@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <Compile Include="FINDINGS.md" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\Labs.Common\Labs.Common.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.ML.Tokenizers" />
+		<PackageReference Include="Microsoft.ML.Tokenizers.Data.O200kBase" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+	</ItemGroup>
+</Project>

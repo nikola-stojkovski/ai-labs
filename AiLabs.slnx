@@ -2,6 +2,9 @@
   <Folder Name="/phase-00/">
     <Project Path="phase-00/hello/Phase00.Hello.csproj" />
   </Folder>
+  <Folder Name="/phase-01/">
+    <Project Path="phase-01/cost-calculator/Phase01.CostCalculator.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/Labs.Common/Labs.Common.csproj" />
   </Folder>
