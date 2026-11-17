@@ -236,3 +236,46 @@
 - 03–09 passed 63/63 again: the second run confirms the first.
 - The fast model with a template beats the thinking model's 2/3 on this task, at ~7 s instead of 50–85 s. No need for the reasoning model here.
 - PayPilot's real version goes one step further: build the calculation sentence in code from the payslip (Phase 2 tool) and let the model write only the plain-language part. Then the numbers can't be wrong at all.
+
+## Phase 1 checkpoint: v3 in PayPilot invented a payslip
+- PayPilot with the v3 prompt, no payslip in the conversation, question "Why is my net pay lower than my gross pay?":
+  "Gross pay 3500 minus income tax 400 and social contributions 200 gives net pay 3100. Your net pay is lower…"
+- Every number is invented, and the invented maths is wrong too (3500 − 400 − 200 = 2900, not 3100).
+- Cause: two instructions conflict without data ("not in the payslip → I don't know" vs "when asked about pay, answer in exactly this format"). The template won and got filled with plausible numbers. What made v3 pass 9/9 makes it dangerous without data.
+- The kata only ran v3 with a payslip present. 9/9 on the happy path said nothing about the missing-data path. A prompt is only tested for the cases you actually ran: test the "no data" case for every prompt that uses data.
+- Expected "I don't know." — wrong prediction. Next: reproduce it in the kata (12), then v4 with the template only when a payslip is present, tested with and without a payslip (13, 14).
+
+## Lab 1.2 — Step 3c: reproducing the invented payslip, v4 (qwen3:4b-instruct, 3 samples per temperature)
+- Full answers: `prompt-kata/results/kata-qwen3-4b-instruct-20261117-1249.md`.
+
+| Prompt | Payslip? | t=0 | t=0.7 | t=1.2 | Total |
+| --- | --- | --- | --- | --- | --- |
+| 11 v3 | yes | 3/3 | 3/3 | 3/3 | 9/9 |
+| 12 v3 (PayPilot's prompt) | no | 0/3 | 0/3 | 0/3 | 0/9 |
+| 13 v4 | yes | 3/3 | 3/3 | 3/3 | 9/9 |
+| 14 v4 | no | 0/3 | 0/3 | 0/3 | 0/9 |
+
+- 12 reproduced the PayPilot bug every time: the template got filled with invented payslips (3000/400/200/2400, 2000/400/150/1450, 3200/500/200/2500…).
+- v4 ("only when a <payslip> is present", "no payslip → I don't know", refusal rules first) changed nothing: 0/9 again. The 4B model doesn't obey a condition on the template; seeing the template in the system prompt is enough to fill it.
+- At t=0 the same invented payslip came out 3 times in a row (2000/300/150/1550). Consistency ≠ correctness: a repeatable wrong answer looks trustworthy.
+- The kata's invented sums were all arithmetically right; the one in PayPilot (3500 − 400 − 200 = 3100) wasn't. Both are invented. A believable invention is worse than an obvious one.
+- v4 kept the happy path (13: 9/9), and 01–11 matched the previous runs (03–09 63/63, v1 2/9, v2 4/9, v3 9/9).
+- Conclusion: a prompt rule can't reliably stop a small model from using a template it can see. Move the decision into code: the template should only be in the conversation when the payslip is.
+
+## Lab 1.2 — Step 3d: the template travels with the data (v5)
+- Full answers: `prompt-kata/results/kata-qwen3-4b-instruct-20261117-1301.md`.
+- v5 = system prompt with rules only (no template). The template goes in the user message, next to the payslip, only when there is a payslip — in PayPilot that message is built by code.
+
+| Prompt | Payslip? | t=0 | t=0.7 | t=1.2 | Total |
+| --- | --- | --- | --- | --- | --- |
+| 12 v3 (template in system prompt) | no | 0/3 | 0/3 | 0/3 | 0/9 |
+| 14 v4 (conditional template) | no | 0/3 | 0/3 | 0/3 | 0/9 |
+| 15 v5 (no template) | no | 3/3 | 3/3 | 3/3 | 9/9 |
+| 16 v5 + template with the payslip | yes | 3/3 | 3/3 | 3/3 | 9/9 |
+
+- 15: "I don't know." every time, at every temperature. No invented numbers, not even a generic explanation.
+- 16: same answers as v3 on the happy path ("Gross pay 2221.72 minus income tax 222.17…"), 9/9.
+- The same rules that were ignored in v4 were followed in v5. The only difference was the template being visible. For a small model, what it can see beats what it's told.
+- Lesson: decisions about the data ("is there a payslip?") belong in code, not in prompt conditions. The system prompt holds what's true in every conversation; anything that depends on the data is added by the code together with the data.
+- 01–14 matched the earlier runs again (03–09 63/63).
+- For PayPilot now: chat-system.md = v5. The template waits for Phase 2, where the code attaches it with the payslip.
