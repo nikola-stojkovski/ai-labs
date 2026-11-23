@@ -6,7 +6,12 @@ public static class LabHost
 {
     public static IHost Create(string[] args, Action<IHostApplicationBuilder>? configure = null)
     {
-        var builder = Host.CreateApplicationBuilder(args);
+        var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+        {
+            Args = args,
+            ContentRootPath = AppContext.BaseDirectory,
+        });
+
         builder.AddLabAi();
         configure?.Invoke(builder);
 
