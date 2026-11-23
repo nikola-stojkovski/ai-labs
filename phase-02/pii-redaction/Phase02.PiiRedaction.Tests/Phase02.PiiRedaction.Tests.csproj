@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<IsPackable>false</IsPackable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="xunit.v3" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\..\src\Labs.Common\Labs.Common.csproj" />
+		<ProjectReference Include="..\Phase02.PiiRedaction.Core\Phase02.PiiRedaction.Core.csproj" />
+	</ItemGroup>
+
+</Project>

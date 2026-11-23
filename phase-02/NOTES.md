@@ -109,3 +109,30 @@ Same `PayslipExplainer` for every provider, question "Why is my net pay lower th
 - Seen failing on purpose: adding the OllamaSharp package to Core alone kept the tests green (the compiler drops references to assemblies the code never uses). Using `OllamaApiClient` in Core turned the reference test red. The test catches use; a review of the `.csproj` catches the dependency.
 - `FakeChatClient` tests what the code sends to the model, not what the model answers: milliseconds, free, deterministic.
 - xUnit 4 runs on Microsoft Testing Platform v2; on the .NET 10 SDK `dotnet test` needs `global.json` with `"test": { "runner": "Microsoft.Testing.Platform" }`.
+
+## Lab 2.2: PII redaction middleware
+
+### Predictions before measuring (from the pipeline model)
+- Builder order = nesting: the first `Use` is the outermost layer. The tool loop happens inside `FunctionInvokingChatClient`: it calls the layer below it, runs the tool, adds the result to the messages and calls the layer below it again.
+- Redactor outside `UseFunctionInvocation`: runs once, on the request from the app, before any tool result exists. The tool result is created inside the function-invocation layer and goes straight down to the model: the IBAN leaks.
+- Redactor inside: every model call passes through it, tool results included. The model only ever sees `[IBAN]`, so it can't tell the user their account: the data is protected, but the feature is broken.
+- Runs per question: outside = once; inside = once per model call (2 for one tool call). The whole history is redacted again on every call, so the same user message is masked and logged more than once.
+
+### Step 1: redactor and middleware tests
+- 13 tests green with `FakeChatClient`: email, IBAN with and without spaces, EMBG, amounts and dates untouched, a 13-digit number that can't be a date untouched, a date-shaped reference number masked (known false positive), tool results masked, streaming path masked, caller's history unchanged, clean messages passed through as the same object.
+
+### Step 2: redactor position, qwen3:4b-instruct, one tool call
+
+| Setup | Requests to the model | What the model saw | Redactor runs | Answer to the user |
+| --- | --- | --- | --- | --- |
+| Redactor outside `UseFunctionInvocation` | 2 | request 1 clean, request 2 had the tool result with email, IBAN and EMBG | 1 | the real IBAN |
+| Redactor inside | 2 | both clean | 2 | "IBAN: [IBAN]" |
+| Redactor inside, streaming | 2 | both clean | 2 | "IBAN: [IBAN]" |
+
+- All predictions held. Outside: the redactor only sees the app's request; the tool result is created inside the function-invocation layer and goes straight to the model. Position decides what is protected, not the redactor's code.
+- Inside protects everything and breaks the feature: the model can't tell Ana her own account. The user is allowed to see her IBAN; the model provider isn't.
+- The real fix isn't a smarter redactor, it's data minimisation: tools return only what the model needs to answer (e.g. a masked IBAN `MK07 **** 984`), and the app shows full values from its own data, never from the model's text. Redaction is the safety net, not the main control.
+- The whole history is redacted again on every model call: the second run logged "2 EMBG, 2 EMAIL, 1 IBAN" for 1 + 1 + 1 values. Counts are per model call, not per user request: don't use them as an audit metric as they are.
+- `response.Text` joins all assistant text from the loop, including the model's "I'll check your employee details..." before the tool call. A chat UI should show only the final message.
+- The tool returned a JSON string, so the model got it serialised twice (escaped quotes). Tools should return objects and let `AIFunctionFactory` serialise them once.
+- Streaming behaved exactly like non-streaming: the override of `GetStreamingResponseAsync` works.

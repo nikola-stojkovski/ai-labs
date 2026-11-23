@@ -7,6 +7,9 @@
     <Project Path="phase-01/prompt-kata/Phase01.PromptKata.csproj" />
   </Folder>
   <Folder Name="/phase-02/">
+    <Project Path="phase-02/pii-redaction/Phase02.PiiRedaction.Core/Phase02.PiiRedaction.Core.csproj" />
+    <Project Path="phase-02/pii-redaction/Phase02.PiiRedaction.Tests/Phase02.PiiRedaction.Tests.csproj" />
+    <Project Path="phase-02/pii-redaction/Phase02.PiiRedaction/Phase02.PiiRedaction.csproj" />
     <Project Path="phase-02/provider-switch/Phase02.ProviderSwitch.Core/Phase02.ProviderSwitch.Core.csproj" Id="068b3edb-dec6-4646-919e-8bec991b3371" />
     <Project Path="phase-02/provider-switch/Phase02.ProviderSwitch.Tests/Phase02.ProviderSwitch.Tests.csproj" />
     <Project Path="phase-02/provider-switch/Phase02.ProviderSwitch/Phase02.ProviderSwitch.csproj" />
