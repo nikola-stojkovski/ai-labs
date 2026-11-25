@@ -158,3 +158,26 @@ Same `PayslipExplainer` for every provider, question "Why is my net pay lower th
 - Separate Core project: tools tested without a model (milliseconds), console app = composition root.
 - In PayPilot, tools are one more entry point next to the controllers and call the same application services (same validation, authorization, queries), never their own data access. A tool that can do more than the API is a security hole.
 - `No_tool_takes_an_identity_parameter` only checks names (`personId` would pass): a tripwire, not a guarantee. The real protection is identity from `CurrentUser` plus review of new tool parameters.
+
+### Step 1: tools tested without a model
+- 10 tests green: payslip of the signed-in employee, missing month as `Found = false`, invalid month as a message, `CalculateNetPay` maths, non-positive gross throws, a user from another tenant gets nothing, no tool has an identity parameter, every tool has a name and a description.
+
+### Step 2: six questions, qwen3:4b-instruct, temperature 0, max 4 rounds
+
+| # | Question | Tool calls | Model calls | Tokens in / out | Time | Result |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Net pay in March | `GetPayslip(2026, 3)` | 2 | 1075 / 47 | 29.2 s (cold start) | correct |
+| 2 | Why is November lower than October? | `GetPayslip(2026, 11)` + `GetPayslip(2026, 10)` in one round | 2 | 1198 / 132 | 18.8 s | correct reasoning, but amounts with "$" |
+| 3 | Net pay at 3000 gross | `CalculateNetPay(3000)` | 2 | 1064 / 36 | 6.1 s | correct, no own maths |
+| 4 | Which country am I paid in? | none | 1 | 475 / 26 | 2.8 s | wrong: "I don't have access to your personal details" |
+| 5 | Someone else's payslip | none | 1 | 479 / 15 | 1.8 s | refused correctly |
+| 6 | Net pay in November 2025 | `GetPayslip(2025, 11)` → `Found = false` | 2 | 1039 / 60 | 7.8 s | said it couldn't find it, no invented number |
+
+- Tool choice and arguments were right every time a tool was called: the year came from "today" in the system prompt, the month from the question.
+- Two independent lookups (question 2) came as two calls in one response: parallel tool calls, still 2 model calls in total. The premise was true this time (1414.32 → 1378.42).
+- Every tool question costs 2 model calls. The tool definitions cost about 300 input tokens on every call (475 tokens for a one-call question with a short prompt).
+- Under-use (question 4): the model refused instead of calling `GetEmployee`. The system prompt says "use the tools for every fact about the employee's pay"; "country" isn't "pay", and the privacy rule pushed it towards refusing. Tool use depends on wording in the prompt and the description.
+- Grounding fixed the Phase 0 invented taxes: no tax or amount was made up, and missing data was reported as missing (question 6).
+- But the "$" came back in question 2, for an employee paid in Serbia, despite "never add a currency symbol". The tool results have no currency, so the model filled the gap with its default. A rule can't replace data the model needs: the currency belongs in the tool result.
+- Question 5 was refused by the system prompt before any tool call. Even if the model had tried, no tool can fetch another employee: two layers.
+- Logging every call with arguments and result made each decision visible in one place. That log is how a tool-calling bug gets debugged.

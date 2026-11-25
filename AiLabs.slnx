@@ -15,6 +15,7 @@
     <Project Path="phase-02/provider-switch/Phase02.ProviderSwitch/Phase02.ProviderSwitch.csproj" />
     <Project Path="phase-02/tools/Phase02.Tools.Core/Phase02.Tools.Core.csproj" />
     <Project Path="phase-02/tools/Phase02.Tools.Tests/Phase02.Tools.Tests.csproj" />
+    <Project Path="phase-02/tools/Phase02.Tools/Phase02.Tools.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Labs.Common/Labs.Common.csproj" />
