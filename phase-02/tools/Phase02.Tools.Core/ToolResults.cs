@@ -3,10 +3,11 @@ using System.Globalization;
 
 namespace Phase02.Tools.Core;
 
-public sealed record EmployeeView(string FirstName, string Country, decimal MonthlyBaseGross);
+public sealed record EmployeeView(string FirstName, string Country, string Currency, decimal MonthlyBaseGross);
 
 public sealed record PayslipView(
     string Period,
+    string Currency,
     decimal Gross,
     decimal IncomeTax,
     decimal SocialContributions,
@@ -20,11 +21,12 @@ public sealed record PayslipLookup(bool Found, string? Message, PayslipView? Pay
 {
     public static PayslipLookup NotFound(string message) => new(false, message, null);
 
-    public static PayslipLookup From(Payslip payslip) => new(
+    public static PayslipLookup From(Payslip payslip, string currency) => new(
         true,
         null,
         new PayslipView(
             payslip.Period.ToString("yyyy-MM", CultureInfo.InvariantCulture),
+            currency,
             payslip.Gross,
             payslip.IncomeTax,
             payslip.SocialContributions,
@@ -32,4 +34,4 @@ public sealed record PayslipLookup(bool Found, string? Message, PayslipView? Pay
             payslip.HasBonus));
 }
 
-public sealed record NetPayCalculation(decimal Gross, decimal IncomeTax, decimal SocialContributions, decimal Net);
+public sealed record NetPayCalculation(string Currency, decimal Gross, decimal IncomeTax, decimal SocialContributions, decimal Net);

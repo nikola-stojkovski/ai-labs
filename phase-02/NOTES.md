@@ -181,3 +181,20 @@ Same `PayslipExplainer` for every provider, question "Why is my net pay lower th
 - But the "$" came back in question 2, for an employee paid in Serbia, despite "never add a currency symbol". The tool results have no currency, so the model filled the gap with its default. A rule can't replace data the model needs: the currency belongs in the tool result.
 - Question 5 was refused by the system prompt before any tool call. Even if the model had tried, no tool can fetch another employee: two layers.
 - Logging every call with arguments and result made each decision visible in one place. That log is how a tool-calling bug gets debugged.
+
+### Step 3: currency in the results, wider prompt rule, sharper `GetEmployee` description
+
+| # | Question | Before | After |
+| --- | --- | --- | --- |
+| 1 | Net pay in March | correct | correct, "1387.75 RSD" |
+| 2 | November lower than October? | correct, but "$" | **regression**: "Let me retrieve those records." and stopped, no tool call, 1 model call |
+| 3 | Net pay at 3000 gross | correct | correct, "1860.00 RSD" |
+| 4 | Which country am I paid in? | refused, no tool call | called `GetEmployee`, then answered "Russia (RS)": RS is Serbia |
+| 5 | Someone else's payslip | refused | refused |
+| 6 | Net pay in November 2025 | not found | not found |
+
+- Currency in the tool results fixed the "$" for good: data beat the rule.
+- The wider prompt rule and the "use it for any question about the employee themselves" description fixed under-use: question 4 called the tool (both changed together, so it's unclear which one did it).
+- New wrong answer from right data: the tool returned the code "RS" and the model decoded it as Russia. Codes the model has to interpret are a guess waiting to happen: return "Serbia", not "RS".
+- Regression on question 2: same model, temperature 0, a different system prompt, and it announced the lookup in text instead of calling the tool. A prompt change that fixes one question can break another. Running all six questions every time is a tiny regression suite; this is what evals are for (Phase 5).
+- Longer prompt and descriptions cost tokens on every call: a one-call question went from 475 to 534 input tokens.

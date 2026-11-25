@@ -10,11 +10,11 @@ namespace Phase02.Tools.Core;
 /// </summary>
 public sealed class PayrollTools(PayrollStore store, CurrentUser user)
 {
-    [Description("Gets the signed-in employee's first name, country and monthly base gross pay.")]
+    [Description("Gets the signed-in employee's profile: first name, the country they are paid in, the currency of their pay and their monthly base gross pay. Use it for any question about the employee themselves.")]
     public EmployeeView GetEmployee()
     {
         var employee = CurrentEmployee();
-        return new EmployeeView(employee.FirstName, employee.Country, employee.MonthlyGross);
+        return new EmployeeView(employee.FirstName, employee.Country, CurrencyOf(employee), employee.MonthlyGross);
     }
 
     [Description("Gets the signed-in employee's payslip for one month. Returns Found = false with a message when there is no payslip.")]
@@ -33,12 +33,13 @@ public sealed class PayrollTools(PayrollStore store, CurrentUser user)
             return PayslipLookup.NotFound($"Year must be between 2000 and 2100, got {year}.");
         }
 
+        var employee = CurrentEmployee();
         var period = new DateOnly(year, month, 1);
-        var payslip = store.PayslipsFor(CurrentEmployee().Id).SingleOrDefault(p => p.Period == period);
+        var payslip = store.PayslipsFor(employee.Id).SingleOrDefault(p => p.Period == period);
 
         return payslip is null
             ? PayslipLookup.NotFound($"No payslip for {period:yyyy-MM}.")
-            : PayslipLookup.From(payslip);
+            : PayslipLookup.From(payslip, CurrencyOf(employee));
     }
 
     [Description("Calculates income tax, social contributions and net pay for a monthly gross amount. Use it for every 'what if' question about pay.")]
@@ -52,7 +53,7 @@ public sealed class PayrollTools(PayrollStore store, CurrentUser user)
         var tax = Math.Round(gross * SyntheticPayroll.IncomeTaxRate, 2);
         var social = Math.Round(gross * SyntheticPayroll.SocialContributionRate, 2);
 
-        return new NetPayCalculation(gross, tax, social, gross - tax - social);
+        return new NetPayCalculation(CurrencyOf(CurrentEmployee()), gross, tax, social, gross - tax - social);
     }
 
     public IList<AITool> AsAITools() =>
@@ -66,4 +67,12 @@ public sealed class PayrollTools(PayrollStore store, CurrentUser user)
     private Employee CurrentEmployee() =>
         store.Employees.SingleOrDefault(e => e.Id == user.EmployeeId && e.TenantId == user.TenantId)
         ?? throw new InvalidOperationException("The signed-in employee was not found in their tenant.");
+
+    // Pay is in the currency of the country the employee is paid in
+    private static string CurrencyOf(Employee employee) => employee.Country switch
+    {
+        "MK" => "MKD",
+        "RS" => "RSD",
+        var country => throw new InvalidOperationException($"No currency configured for country '{country}'."),
+    };
 }

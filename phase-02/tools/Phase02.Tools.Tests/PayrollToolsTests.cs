@@ -96,4 +96,14 @@ public class PayrollToolsTests
             tools.Select(tool => tool.Name).Order());
         Assert.All(tools, tool => Assert.False(string.IsNullOrWhiteSpace(tool.Description)));
     }
+
+    [Fact]
+    public void Every_amount_carries_the_currency_of_the_employees_country()
+    {
+        var expected = Me.Country == "MK" ? "MKD" : "RSD";
+
+        Assert.Equal(expected, Tools.GetEmployee().Currency);
+        Assert.Equal(expected, Tools.GetPayslip(2026, 3).Payslip!.Currency);
+        Assert.Equal(expected, Tools.CalculateNetPay(3000m).Currency);
+    }
 }
