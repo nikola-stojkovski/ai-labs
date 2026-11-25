@@ -136,3 +136,25 @@ Same `PayslipExplainer` for every provider, question "Why is my net pay lower th
 - `response.Text` joins all assistant text from the loop, including the model's "I'll check your employee details..." before the tool call. A chat UI should show only the final message.
 - The tool returned a JSON string, so the model got it serialised twice (escaped quotes). Tools should return objects and let `AIFunctionFactory` serialise them once.
 - Streaming behaved exactly like non-streaming: the override of `GetStreamingResponseAsync` works.
+
+## Lab 2.3: tools
+
+### What a tool is
+- The model only produces text. A tool is how it reaches into the app: it asks for a call, my code decides and runs it.
+- "Function calling" was the original name; "tools" is broader (my C# methods, provider-hosted tools like web search, MCP tools). In .NET: `AITool` is the base class, `AIFunction` is a tool that runs my C# code.
+- Tools are a controller whose client is the model:
+
+| Web API | Lab 2.3 |
+| --- | --- |
+| Controller | `PayrollTools` (each public method = one tool) |
+| Swagger / OpenAPI | `[Description]` attributes → JSON schema sent with every request |
+| Response DTOs | `ToolResults.cs` (only what an answer needs) |
+| `HttpContext.User` | `CurrentUser` (identity from the server, never from the model) |
+| DbContext / repository | `PayrollStore` |
+| Validation / 400 | month and year checks, `ThrowIfNegativeOrZero` |
+
+- Names and descriptions are the model's only documentation: they decide which tool it picks.
+- `PayslipLookup` makes "not found" a normal answer, so the model passes it on instead of inventing numbers.
+- Separate Core project: tools tested without a model (milliseconds), console app = composition root.
+- In PayPilot, tools are one more entry point next to the controllers and call the same application services (same validation, authorization, queries), never their own data access. A tool that can do more than the API is a security hole.
+- `No_tool_takes_an_identity_parameter` only checks names (`personId` would pass): a tripwire, not a guarantee. The real protection is identity from `CurrentUser` plus review of new tool parameters.
