@@ -198,3 +198,10 @@ Same `PayslipExplainer` for every provider, question "Why is my net pay lower th
 - New wrong answer from right data: the tool returned the code "RS" and the model decoded it as Russia. Codes the model has to interpret are a guess waiting to happen: return "Serbia", not "RS".
 - Regression on question 2: same model, temperature 0, a different system prompt, and it announced the lookup in text instead of calling the tool. A prompt change that fixes one question can break another. Running all six questions every time is a tiny regression suite; this is what evals are for (Phase 5).
 - Longer prompt and descriptions cost tokens on every call: a one-call question went from 475 to 534 input tokens.
+
+### Step 4: country name, "never announce" rule, a check on every question
+- Passed 5 of 6. Every answer now checks itself, so the run is a small eval: the regression on question 2 shows as FAIL instead of hiding behind "check by hand".
+- Question 4 fixed: `GetEmployee` returned "Serbia", the answer was "You are paid in Serbia." Giving the name instead of the code removed the guess.
+- Question 2 still fails: "Let me retrieve that data." and no tool call, even with a rule saying never to announce a lookup. It worked with the Step 2 prompt, so the behaviour is prompt-sensitive; adding more rules didn't fix it.
+- Lesson: when another rule doesn't help, stop tuning the prompt and change the design. A small model handles one tool that matches the question better than planning two calls and comparing the results itself; and the comparison is maths, which belongs in code anyway.
+- Forcing a tool call isn't an option here: Ollama doesn't support `tool_choice`, so `ChatToolMode.RequireAny` has no effect locally.

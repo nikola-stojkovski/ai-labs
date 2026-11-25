@@ -14,7 +14,7 @@ public sealed class PayrollTools(PayrollStore store, CurrentUser user)
     public EmployeeView GetEmployee()
     {
         var employee = CurrentEmployee();
-        return new EmployeeView(employee.FirstName, employee.Country, CurrencyOf(employee), employee.MonthlyGross);
+        return new EmployeeView(employee.FirstName, CountryNameOf(employee), CurrencyOf(employee), employee.MonthlyGross);
     }
 
     [Description("Gets the signed-in employee's payslip for one month. Returns Found = false with a message when there is no payslip.")]
@@ -74,5 +74,13 @@ public sealed class PayrollTools(PayrollStore store, CurrentUser user)
         "MK" => "MKD",
         "RS" => "RSD",
         var country => throw new InvalidOperationException($"No currency configured for country '{country}'."),
+    };
+
+    // A name, not a code: the model decoded "RS" as Russia
+    private static string CountryNameOf(Employee employee) => employee.Country switch
+    {
+        "MK" => "Macedonia",
+        "RS" => "Serbia",
+        var country => throw new InvalidOperationException($"No name configured for country '{country}'."),
     };
 }

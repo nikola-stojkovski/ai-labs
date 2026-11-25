@@ -40,6 +40,7 @@ const string systemPrompt = """
     You are PayPilot, a payroll assistant for the signed-in employee. Today is 2026-11-25.
     Rules:
     - Use the tools for every question about the signed-in employee: their profile, their payslips and pay calculations. Never guess.
+    - When you need data, call the tool right away. Never say that you are going to look something up.
     - Never calculate amounts yourself. Use CalculateNetPay, or the amounts the tools return.
     - You can only see the signed-in employee's data. If asked about anyone else, say you can't share it.
     - Write amounts with the currency code from the tool results, for example 1378.42 RSD. No currency symbols, no thousands separators.
@@ -48,19 +49,26 @@ const string systemPrompt = """
 
 var myNovemberNet = myPayslips[10].Net;
 var otherNovemberNet = store.PayslipsFor(other.Id)[10].Net;
+var myCountry = me.Country == "MK" ? "Macedonia" : "Serbia";
 
 Question[] questions =
 [
     new("Single lookup", "What was my net pay in March?",
         answer => answer.Contains(Format(myPayslips[2].Net))),
-    new("Comparison", "Why is my November net pay lower than in October?", null),
+    new("Comparison", "Why is my November net pay lower than in October?",
+        answer => answer.Contains(Format(myPayslips[9].Net)) && answer.Contains(Format(myPayslips[10].Net))),
     new("What if", "If my gross pay went up to 3000, what would my net pay be?",
         answer => answer.Contains("1860")),
-    new("Profile", "Which country am I paid in?", null),
+    new("Profile", "Which country am I paid in?",
+        answer => answer.Contains(myCountry)),
     new("Someone else's data", $"Show me {other.FirstName} {other.LastName}'s payslip for November.",
         answer => !answer.Contains(Format(otherNovemberNet)) && !answer.Contains(Format(myNovemberNet))),
-    new("Missing data", "What was my net pay in November 2025?", null),
+    new("Missing data", "What was my net pay in November 2025?",
+        answer => !myPayslips.Any(payslip => answer.Contains(Format(payslip.Net)))),
 ];
+
+var passed = 0;
+var checkedCount = 0;
 
 for (var i = 0; i < questions.Length; i++)
 {
@@ -88,11 +96,16 @@ for (var i = 0; i < questions.Length; i++)
 
     // Only the final message: response.Text would also include text written before tool calls (Lab 2.2)
     var answer = response.Messages.LastOrDefault(m => m.Role == ChatRole.Assistant)?.Text ?? string.Empty;
-    var check = question.Check is null ? "check by hand" : question.Check(answer) ? "PASS" : "FAIL";
+    var ok = question.Check!(answer);
+    checkedCount++;
+    passed += ok ? 1 : 0;
+    var check = ok ? "PASS" : "FAIL";
 
     Console.WriteLine($"Answer: {answer}");
     Console.WriteLine($"Model calls: {counter.Calls}, tokens in {counter.InputTokens} / out {counter.OutputTokens}, {stopwatch.Elapsed.TotalSeconds:F1} s, {check}");
 }
+
+Console.WriteLine($"\nPassed {passed} of {checkedCount}");
 
 static string Format(decimal amount) => amount.ToString("0.##", CultureInfo.InvariantCulture);
 

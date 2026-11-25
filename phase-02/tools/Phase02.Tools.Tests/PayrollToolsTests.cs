@@ -106,4 +106,12 @@ public class PayrollToolsTests
         Assert.Equal(expected, Tools.GetPayslip(2026, 3).Payslip!.Currency);
         Assert.Equal(expected, Tools.CalculateNetPay(3000m).Currency);
     }
+
+    [Fact]
+    public void Profile_gives_the_country_name_not_a_code()
+    {
+        var expected = Me.Country == "MK" ? "Macedonia" : "Serbia";
+
+        Assert.Equal(expected, Tools.GetEmployee().Country);
+    }
 }
