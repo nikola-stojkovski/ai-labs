@@ -42,6 +42,24 @@ public sealed class PayrollTools(PayrollStore store, CurrentUser user)
             : PayslipLookup.From(payslip, CurrencyOf(employee));
     }
 
+    [Description("Compares two of the signed-in employee's payslips and returns both, plus the change in gross, tax, contributions and net (later minus earlier). Use it for any question that compares months, such as why pay went up or down.")]
+    public PayslipComparison ComparePayslips(
+    [Description("Four-digit year of the earlier month.")] int earlierYear,
+    [Description("Earlier month number from 1 to 12.")] int earlierMonth,
+    [Description("Four-digit year of the later month.")] int laterYear,
+    [Description("Later month number from 1 to 12.")] int laterMonth)
+    {
+        var earlier = GetPayslip(earlierYear, earlierMonth);
+        var later = GetPayslip(laterYear, laterMonth);
+
+        if (!earlier.Found || !later.Found)
+        {
+            return PayslipComparison.NotFound(earlier.Message ?? later.Message!);
+        }
+
+        return PayslipComparison.Of(earlier.Payslip!, later.Payslip!);
+    }
+
     [Description("Calculates income tax, social contributions and net pay for a monthly gross amount. Use it for every 'what if' question about pay.")]
     public NetPayCalculation CalculateNetPay(
         [Description("Monthly gross pay as a plain number, without a currency symbol.")] decimal gross)
@@ -60,6 +78,7 @@ public sealed class PayrollTools(PayrollStore store, CurrentUser user)
     [
         AIFunctionFactory.Create(GetEmployee),
         AIFunctionFactory.Create(GetPayslip),
+        AIFunctionFactory.Create(ComparePayslips),
         AIFunctionFactory.Create(CalculateNetPay),
     ];
 

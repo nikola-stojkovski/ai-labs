@@ -92,7 +92,7 @@ public class PayrollToolsTests
         var tools = Tools.AsAITools().OfType<AIFunction>().ToList();
 
         Assert.Equal(
-            new[] { "CalculateNetPay", "GetEmployee", "GetPayslip" },
+            new[] { "CalculateNetPay", "ComparePayslips", "GetEmployee", "GetPayslip" },
             tools.Select(tool => tool.Name).Order());
         Assert.All(tools, tool => Assert.False(string.IsNullOrWhiteSpace(tool.Description)));
     }
@@ -113,5 +113,27 @@ public class PayrollToolsTests
         var expected = Me.Country == "MK" ? "Macedonia" : "Serbia";
 
         Assert.Equal(expected, Tools.GetEmployee().Country);
+    }
+
+    [Fact]
+    public void ComparePayslips_calculates_the_change_in_code()
+    {
+        var october = Store.PayslipsFor(Me.Id)[9];
+        var november = Store.PayslipsFor(Me.Id)[10];
+
+        var comparison = Tools.ComparePayslips(2026, 10, 2026, 11);
+
+        Assert.True(comparison.Found);
+        Assert.Equal(november.Net - october.Net, comparison.Change!.Net);
+        Assert.Equal(november.Gross - october.Gross, comparison.Change.Gross);
+    }
+
+    [Fact]
+    public void ComparePayslips_reports_a_missing_month()
+    {
+        var comparison = Tools.ComparePayslips(2025, 10, 2026, 11);
+
+        Assert.False(comparison.Found);
+        Assert.Equal("No payslip for 2025-10.", comparison.Message);
     }
 }

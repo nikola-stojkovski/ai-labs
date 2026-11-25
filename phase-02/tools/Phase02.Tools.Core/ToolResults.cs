@@ -35,3 +35,24 @@ public sealed record PayslipLookup(bool Found, string? Message, PayslipView? Pay
 }
 
 public sealed record NetPayCalculation(string Currency, decimal Gross, decimal IncomeTax, decimal SocialContributions, decimal Net);
+
+public sealed record PayslipDifference(decimal Gross, decimal IncomeTax, decimal SocialContributions, decimal Net);
+
+/// <summary>
+/// Both payslips plus the differences (later minus earlier), calculated in code so the model never subtracts.
+/// </summary>
+public sealed record PayslipComparison(bool Found, string? Message, PayslipView? Earlier, PayslipView? Later, PayslipDifference? Change)
+{
+    public static PayslipComparison NotFound(string message) => new(false, message, null, null, null);
+
+    public static PayslipComparison Of(PayslipView earlier, PayslipView later) => new(
+        true,
+        null,
+        earlier,
+        later,
+        new PayslipDifference(
+            later.Gross - earlier.Gross,
+            later.IncomeTax - earlier.IncomeTax,
+            later.SocialContributions - earlier.SocialContributions,
+            later.Net - earlier.Net));
+}

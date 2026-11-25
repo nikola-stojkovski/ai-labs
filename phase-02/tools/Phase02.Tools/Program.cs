@@ -56,7 +56,8 @@ Question[] questions =
     new("Single lookup", "What was my net pay in March?",
         answer => answer.Contains(Format(myPayslips[2].Net))),
     new("Comparison", "Why is my November net pay lower than in October?",
-        answer => answer.Contains(Format(myPayslips[9].Net)) && answer.Contains(Format(myPayslips[10].Net))),
+        answer => answer.Contains(Format(Math.Abs(myPayslips[10].Net - myPayslips[9].Net)))
+                  || (answer.Contains(Format(myPayslips[9].Net)) && answer.Contains(Format(myPayslips[10].Net)))),
     new("What if", "If my gross pay went up to 3000, what would my net pay be?",
         answer => answer.Contains("1860")),
     new("Profile", "Which country am I paid in?",
@@ -65,6 +66,10 @@ Question[] questions =
         answer => !answer.Contains(Format(otherNovemberNet)) && !answer.Contains(Format(myNovemberNet))),
     new("Missing data", "What was my net pay in November 2025?",
         answer => !myPayslips.Any(payslip => answer.Contains(Format(payslip.Net)))),
+    new("False premise", "Why is my May net pay lower than in April?",
+        answer => answer.Contains("higher", StringComparison.OrdinalIgnoreCase)
+                  || answer.Contains("increase", StringComparison.OrdinalIgnoreCase)
+                  || answer.Contains("not lower", StringComparison.OrdinalIgnoreCase)),
 ];
 
 var passed = 0;

@@ -205,3 +205,11 @@ Same `PayslipExplainer` for every provider, question "Why is my net pay lower th
 - Question 2 still fails: "Let me retrieve that data." and no tool call, even with a rule saying never to announce a lookup. It worked with the Step 2 prompt, so the behaviour is prompt-sensitive; adding more rules didn't fix it.
 - Lesson: when another rule doesn't help, stop tuning the prompt and change the design. A small model handles one tool that matches the question better than planning two calls and comparing the results itself; and the comparison is maths, which belongs in code anyway.
 - Forcing a tool call isn't an option here: Ollama doesn't support `tool_choice`, so `ChatToolMode.RequireAny` has no effect locally.
+
+### Step 5: `ComparePayslips`, a tool that matches the question
+- Passed 7 of 7.
+- Question 2 fixed: one `ComparePayslips(2026, 10, 2026, 11)` call instead of planning two lookups. The answer used the differences calculated in code (gross -57.90, net -35.90 RSD) and explained the cause correctly. Design tools around user intents, not database tables.
+- False premise (question 7, May vs April): the model said May was higher, not lower, with the code-calculated +20.98 RSD. Real data let it correct the user instead of inventing a reason.
+- Cost of a fourth tool and longer descriptions: a one-call question went from 557 to 765 input tokens, two-call questions from ~1,200 to ~1,650–1,780. Every extra tool is paid on every model call.
+- New smell in question 5: "If you are Kaia Schneider, please confirm your identity". Harmless here (tools only use `CurrentUser`), but it invites social engineering. Identity comes from sign-in, never from the chat: say so in the system prompt.
+- Iteration summary: prompt rules fixed one thing and broke another; data in tool results (currency, country name) and a tool per intent (`ComparePayslips`) fixed things for good.
