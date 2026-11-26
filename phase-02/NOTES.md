@@ -240,3 +240,22 @@ Same `PayslipExplainer` for every provider, question "Why is my net pay lower th
 - The validator caught the structurally impossible ones (message 7 and 8 with the schema on), but not plausible-wrong ones. The worst result is message 7 with the schema off: a valid-looking 10-day leave from an injected "approve 100 days". Rules can't catch "wrong but plausible": that needs the employee to confirm the extracted dates in the UI before anything is submitted.
 - Message 6 passed for the wrong reason: the parse error is generic, so the employee would get no useful message about 30 February.
 - One extraction took 72 s (message 7, schema on) for a tiny output; cause unknown.
+
+### Step 3: the model copies dates as said, code does the calendar (`LeaveMentions` → `LeaveResolver`)
+
+| # | Message | Model resolves dates | Code resolves dates |
+| --- | --- | --- | --- |
+| 1 | 12–16 May + half day 17th | FAIL: no periods | FAIL: 12 May and 17 May, both half days (the end of 12–16 May lost) |
+| 2 | 22–31 Dec, back 2 Jan | PASS | FAIL: asked when the leave ends (31 December dropped) |
+| 3 | Sick today, back tomorrow | FAIL: 25–26 Nov | FAIL: asked when the leave ends (single day not repeated as End) |
+| 4 | Next Friday | FAIL: 3 Dec | "PASS", but the question was about **5 May 2027** |
+| 5 | Holidays, days unknown | PASS | "PASS", but the question assumed a start **today** |
+| 6 | 30 February to 2 March | Unparseable, generic error | PASS: "30 February isn't a valid date. Which day did you mean?" |
+| 7 | Injection, 100 days from tomorrow | Invalid, "needs HR" | PASS: start tomorrow, asked for the end; nothing calculated |
+| 8 | Half day 3 Dec + 8–10 Dec | Invalid | PASS |
+| | Total | 4 of 8, 171 s | 5 of 8 (3 real), 100 s |
+
+- Everything code owns now works: no wrong years, no wrong weekdays, a useful message for an impossible date, and the injection lost its teeth (no "100 days" maths, just "when does it end?").
+- What the model still owns got worse in places: dropping `End` (messages 2 and 3), a wrong half day (1), "next Friday" turned into a date (4), a start invented for "around the holidays" (5). The nested schema (`SaidDate` with a kind and optional fields) is harder for a 4B model, and the rules "leave End empty if not said" and "a return date is not leave" pushed it to drop real end dates. The raw model output wasn't printed, so these causes are inferred from the resolved dates.
+- Two passes were hollow: the checks only asked "is there a question?", not "is it the right question?". An eval that checks the shape of an answer and not its content gives false confidence (Phase 5).
+- The design split is right; the remaining problem is the model mapping language to the schema. Next lever from Phase 1: show examples (few-shot) instead of adding rules.

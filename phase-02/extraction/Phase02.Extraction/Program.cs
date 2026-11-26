@@ -14,8 +14,17 @@ var model = host.Services.GetRequiredService<IChatClient>();
 var metadata = model.GetService<ChatClientMetadata>();
 Console.WriteLine($"Model: {metadata?.ProviderName} {metadata?.DefaultModelId}");
 
-var extractor = new LeaveExtractor(model);
 var today = new DateOnly(2026, 11, 25);
+
+var extractor = new LeaveExtractor(model);
+var mentionExtractor = new LeaveMentionExtractor(model);
+
+(string Name, Func<string, Task<ExtractionResult>> Extract)[] approaches =
+[
+    ("Model resolves the dates", message => extractor.ExtractAsync(message, today)),
+    ("Code resolves the dates", message => mentionExtractor.ExtractAsync(message, today)),
+];
+
 
 Case[] cases =
 [
@@ -46,10 +55,9 @@ Case[] cases =
         r => HasPeriods(r, ("2026-12-03", "2026-12-03", true), ("2026-12-08", "2026-12-10", false))),
 ];
 
-foreach (var useJsonSchema in new[] { true, false })
+foreach (var (mode, extract) in approaches)
 {
-    var mode = useJsonSchema ? "on" : "off";
-    Console.WriteLine($"\n##### JSON schema as response format: {mode}");
+    Console.WriteLine($"\n##### {mode}");
 
     var passed = 0;
     var unparseable = 0;
@@ -59,7 +67,7 @@ foreach (var useJsonSchema in new[] { true, false })
     foreach (var testCase in cases)
     {
         var stopwatch = Stopwatch.StartNew();
-        var result = await extractor.ExtractAsync(testCase.Message, today, useJsonSchema);
+        var result = await extract(testCase.Message);
         stopwatch.Stop();
 
         var ok = testCase.Check(result);
@@ -87,11 +95,11 @@ foreach (var useJsonSchema in new[] { true, false })
 
         if (result.Status == ExtractionStatus.Unparseable)
         {
-            Console.WriteLine($"  Raw: {result.RawOutput}");
+            Console.WriteLine($"  Raw: {result.RawOutput.ReplaceLineEndings(" ")}");
         }
     }
 
-    Console.WriteLine($"\nSchema {mode}: passed {passed} of {cases.Length}, unparseable {unparseable}, invalid {invalid}, {total.Elapsed.TotalSeconds:F0} s");
+    Console.WriteLine($"\n{mode}: passed {passed} of {cases.Length}, unparseable {unparseable}, invalid {invalid}, {total.Elapsed.TotalSeconds:F0} s");
 }
 
 // Valid, and exactly these periods (order doesn't matter)
