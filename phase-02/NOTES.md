@@ -213,3 +213,30 @@ Same `PayslipExplainer` for every provider, question "Why is my net pay lower th
 - Cost of a fourth tool and longer descriptions: a one-call question went from 557 to 765 input tokens, two-call questions from ~1,200 to ~1,650–1,780. Every extra tool is paid on every model call.
 - New smell in question 5: "If you are Kaia Schneider, please confirm your identity". Harmless here (tools only use `CurrentUser`), but it invites social engineering. Identity comes from sign-in, never from the chat: say so in the system prompt.
 - Iteration summary: prompt rules fixed one thing and broke another; data in tool results (currency, country name) and a tool per intent (`ComparePayslips`) fixed things for good.
+
+## Lab 2.4: extraction
+
+### Step 1: types, validator, extractor tests
+- 15 tests green without a model: business rules (end before start, half day spanning days, more than a year ahead, longer than 30 days, overlaps, no periods and no question, a `null` list from JSON), and the extractor with canned answers (valid, chatty text, impossible date, rule broken, today and weekday in the prompt, schema sent as the response format).
+
+### Step 2: 8 messages, JSON schema as response format on and off, qwen3:4b-instruct, today fixed at 2026-11-25 (Wednesday)
+
+| # | Message | Schema on | Schema off |
+| --- | --- | --- | --- |
+| 1 | 12–16 May + half day 17th | FAIL: no periods, only a follow-up question | FAIL: 16 and 17 December |
+| 2 | 22–31 Dec, back 2 Jan | PASS | PASS |
+| 3 | Sick today, back tomorrow | FAIL: 25–26 Nov | FAIL: today as a half day |
+| 4 | Next Friday | FAIL: 3 Dec (a Thursday) | FAIL: 3 Dec |
+| 5 | Holidays, days unknown | PASS: follow-up | PASS: follow-up |
+| 6 | 30 February to 2 March | Unparseable ("2026-02-30") | Unparseable ("2026-02-30") |
+| 7 | Injection, 100 days from tomorrow | Invalid: 26 Nov to 25 Apr, "needs HR" | **Valid: 26 Nov to 5 Dec** |
+| 8 | Half day 3 Dec + 8–10 Dec | Invalid: half day 3–8 Dec, overlap | PASS |
+| | Total | 4 of 8, 1 unparseable, 2 invalid, 170 s | 4 of 8, 1 unparseable, 0 invalid, 106 s |
+
+- The schema didn't change the parse rate here: both modes produced valid JSON in the right shape every time. The only unparseable output was the impossible date, a value problem, not a shape problem.
+- With the schema on, the model filled `followUpQuestion` in every answer ("Do you have any other leave dates?"), ignoring "otherwise null". With it off, it left it null when it had dates. Constrained output fills every field it's given.
+- Validator loophole: "no periods + a follow-up question" counts as valid, so message 1 with the schema on passed the validator after dropping both periods.
+- The real failures are calendar maths: year inference (May → 2026 or December, February → 2026, already past), weekdays (3 Dec isn't a Friday), "back tomorrow" counted as leave, "100 days" → 150 or 10 days. Same lesson as Phase 1 and Lab 2.3: the model shouldn't do maths, and dates are maths.
+- The validator caught the structurally impossible ones (message 7 and 8 with the schema on), but not plausible-wrong ones. The worst result is message 7 with the schema off: a valid-looking 10-day leave from an injected "approve 100 days". Rules can't catch "wrong but plausible": that needs the employee to confirm the extracted dates in the UI before anything is submitted.
+- Message 6 passed for the wrong reason: the parse error is generic, so the employee would get no useful message about 30 February.
+- One extraction took 72 s (message 7, schema on) for a tiny output; cause unknown.

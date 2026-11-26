@@ -9,6 +9,7 @@
   <Folder Name="/phase-02/">
     <Project Path="phase-02/extraction/Phase02.Extraction.Core/Phase02.Extraction.Core.csproj" />
     <Project Path="phase-02/extraction/Phase02.Extraction.Tests/Phase02.Extraction.Tests.csproj" />
+    <Project Path="phase-02/extraction/Phase02.Extraction/Phase02.Extraction.csproj" />
     <Project Path="phase-02/pii-redaction/Phase02.PiiRedaction.Core/Phase02.PiiRedaction.Core.csproj" />
     <Project Path="phase-02/pii-redaction/Phase02.PiiRedaction.Tests/Phase02.PiiRedaction.Tests.csproj" />
     <Project Path="phase-02/pii-redaction/Phase02.PiiRedaction/Phase02.PiiRedaction.csproj" />
