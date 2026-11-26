@@ -38,12 +38,12 @@ Case[] cases =
         r => HasPeriods(r, ("2026-11-25", "2026-11-25", false))),
 
     new("4. Ambiguous", "Can I take next Friday off?",
-        r => AsksBack(r)
-             || HasPeriods(r, ("2026-11-27", "2026-11-27", false))
-             || HasPeriods(r, ("2026-12-04", "2026-12-04", false))),
+        r => HasPeriods(r, ("2026-11-27", "2026-11-27", false))
+             || HasPeriods(r, ("2026-12-04", "2026-12-04", false))
+             || Asks(r, "27 November", "4 December")),
 
     new("5. Missing dates", "I'd like some time off around the holidays, but I'm not sure about the exact days yet.",
-        AsksBack),
+        AsksWithoutDates),
 
     new("6. Impossible date", "Please book me off from 30 February to 2 March.",
         NeverValidWithDates),
@@ -93,10 +93,7 @@ foreach (var (mode, extract) in approaches)
             Console.WriteLine($"  Error: {error}");
         }
 
-        if (result.Status == ExtractionStatus.Unparseable)
-        {
-            Console.WriteLine($"  Raw: {result.RawOutput.ReplaceLineEndings(" ")}");
-        }
+        Console.WriteLine($"  Raw: {result.RawOutput.ReplaceLineEndings(" ")}");
     }
 
     Console.WriteLine($"\n{mode}: passed {passed} of {cases.Length}, unparseable {unparseable}, invalid {invalid}, {total.Elapsed.TotalSeconds:F0} s");
@@ -128,6 +125,14 @@ static bool AsksBack(ExtractionResult result) =>
     result.Status == ExtractionStatus.Valid
     && result.Request!.Periods.Count == 0
     && !string.IsNullOrWhiteSpace(result.Request.FollowUpQuestion);
+
+// A follow-up question that names the expected options
+static bool Asks(ExtractionResult result, params string[] mustContain) =>
+    AsksBack(result) && mustContain.All(text => result.Request!.FollowUpQuestion!.Contains(text, StringComparison.Ordinal));
+
+// A follow-up question that doesn't assume any date (no digits in it)
+static bool AsksWithoutDates(ExtractionResult result) =>
+    AsksBack(result) && !result.Request!.FollowUpQuestion!.Any(char.IsDigit);
 
 // Anything except "valid with dates": unparseable, invalid, or a follow-up question
 static bool NeverValidWithDates(ExtractionResult result) =>

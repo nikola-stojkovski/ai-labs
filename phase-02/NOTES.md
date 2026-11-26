@@ -259,3 +259,11 @@ Same `PayslipExplainer` for every provider, question "Why is my net pay lower th
 - What the model still owns got worse in places: dropping `End` (messages 2 and 3), a wrong half day (1), "next Friday" turned into a date (4), a start invented for "around the holidays" (5). The nested schema (`SaidDate` with a kind and optional fields) is harder for a 4B model, and the rules "leave End empty if not said" and "a return date is not leave" pushed it to drop real end dates. The raw model output wasn't printed, so these causes are inferred from the resolved dates.
 - Two passes were hollow: the checks only asked "is there a question?", not "is it the right question?". An eval that checks the shape of an answer and not its content gives false confidence (Phase 5).
 - The design split is right; the remaining problem is the model mapping language to the schema. Next lever from Phase 1: show examples (few-shot) instead of adding rules.
+
+### Step 4: five worked examples instead of two rules, stricter checks for messages 4 and 5, raw output printed
+- Code resolves the dates: **8 of 8**, all real (raw output confirms what the model copied), 0 unparseable, 0 invalid, 62 s. Model resolves the dates: still 4 of 8, 158 s.
+- The examples fixed exactly the Step 3 failures: end dates kept (22–31 Dec), single days repeated as End ("sick today"), "next Friday" copied as a weekday with `next: true` (code then asked "27 November 2026 or 4 December 2026?"), the return date ignored, and an empty list for "around the holidays" (code asked "Which days would you like to take off?").
+- Phase 1 confirmed again: showing the answer shape beats describing it with rules.
+- Injection: this time the model returned no mentions at all, so code asked which days. Step 3 copied "starting tomorrow" and asked for the end. Both safe: no "100 days" was ever calculated.
+- Faster overall (62 s vs 100 s) despite a longer prompt: short, copy-only outputs; the empty-list answers took ~1.3 s.
+- Limits: 8 messages, one model, temperature 0. The examples could fit this phrasing better than real employees' phrasing; a bigger set of real messages is needed before trusting it (Phase 5). Every example is also paid in input tokens on every call.
